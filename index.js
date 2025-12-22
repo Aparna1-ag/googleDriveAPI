@@ -5,11 +5,25 @@ const path = require("path");
 const { google } = require("googleapis");
 require("dotenv").config()
 const mongoose = require("mongoose");
+const cors = require('cors')
+const authMiddleware =  require('./middleware/authMiddleware')
+
+
+const app = express();
+
+
+
+app.use(cors())
+
+app.use(express.json())
+
 
 mongoose
   .connect("mongodb://127.0.0.1:27017/community-chat")
   .then(() => console.log("MongoDB Connected"))
   .catch(console.error);
+
+
 
 const userSchema = new mongoose.Schema({
   name: String,
@@ -19,26 +33,48 @@ const userSchema = new mongoose.Schema({
   createdAt: { type: Date, default: Date.now },
   friends: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
   friendRequests: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
-  files: [
-    {
-      _id: {type: mongoose.Schema.Types.ObjectId, auto: true},
-      name: String,
-      url: String,
-      type: {
-        type: String,
-        enum: ["image", "video", "document"]
-      },
-      createdAt: String,
-      size: Number,
-      mimeType: String,
+  // files: [
+  //   {
+  //     _id: {type: mongoose.Schema.Types.ObjectId, auto: true},
+  //     name: String,
+  //     url: String,
+  //     type: {
+  //       type: String,
+  //       enum: ["image", "video", "document"]
+  //     },
+  //     createdAt: { type: Date, default: Date.now },
+  //     size: Number,
+  //     mimeType: String,
 
-    }
-  ]
+  //   }
+  // ]
 
 });
 
+
+
+
+const fileSchema = new mongoose.Schema({
+  
+    _id: {type: mongoose.Schema.Types.ObjectId, auto: true},
+    name: String,
+    url: String,
+    type: {
+      type: String,
+      enum: ["image", "video", "document"]
+    },
+    createdAt: { type: Date, default: Date.now },
+    size: Number,
+    mimeType: String,
+    user: {type: mongoose.Schema.Types.ObjectId, ref: "User"}
+
+  
+
+})
+
 const User = mongoose.model("User", userSchema);
-const app = express();
+
+const File = mongoose.model("File", fileSchema)
 
 const upload = multer({ dest: "uploads/" });
 
@@ -61,7 +97,7 @@ app.post("/uploadfile/:userId", uploadMiddleWare, async (req, res) => {
     return res.status(400).json({ error: "No files uploaded" });
   }
 
-  const user = req.params.userId
+  const userId = req.params.userId
 
   const drive = google.drive({
     version: "v3",
@@ -81,9 +117,11 @@ app.post("/uploadfile/:userId", uploadMiddleWare, async (req, res) => {
 
     
 
-const photoIds = []
-const videoIds = []
-const documentIds = []
+// const photoIds = []
+// const videoIds = []
+// const documentIds = []
+
+const allFiles = []
 
   if (req.files.photos?.length) {
     for (let each of req.files.photos ) {
@@ -101,9 +139,13 @@ const documentIds = []
         fields: "id, name",
       });
 
-      photoIds.push({id: response.data.id, name: response.data.name})
+      allFiles.push({url: response.data.id, name: response.data.name, mimeType: each.mimetype, size: each.size, type: "image", user: userId})
       
+      fs.unlinkSync(each.path);
+
     }
+
+
 
   }
 
@@ -124,7 +166,9 @@ const documentIds = []
         fields: "id, name",
       });
 
-      videoIds.push({id: response.data.id, name: response.data.name})
+      allFiles.push({url: response.data.id, name: response.data.name, mimeType: each.mimetype, size: each.size, type: "video", user: userId})
+
+      fs.unlinkSync(each.path);
 
       
     }
@@ -147,7 +191,10 @@ const documentIds = []
         fields: "id, name",
       });
 
-      documentIds.push({id: response.data.id, name: response.data.name})
+      allFiles.push({url: response.data.id, name: response.data.name, mimeType: each.mimetype, size: each.size, type: "document", user: userId})
+
+      fs.unlinkSync(each.path);
+
 
       
     }
@@ -158,16 +205,19 @@ const documentIds = []
 
 
 
-  console.log(photoIds)
-  console.log(videoIds)
+  // console.log(photoIds)
+  // console.log(videoIds)
 
-  console.log(documentIds)
+  // console.log(documentIds)
 
-  const allUsers = await User.find()
-  const currentUser = await User.findOne({id: user})
+  console.log(allFiles)
 
-  console.log(allUsers)
-  console.log(currentUser)
+  // const allUsers = await User.find()
+  // const currentUser = await User.updateOne({_id: user}, {files: allFiles})
+  const insertFiles = await File.insertMany(allFiles)
+
+  // console.log(allUsers)
+  console.log(insertFiles)
 
 
 
@@ -198,6 +248,33 @@ const documentIds = []
     });
   }
 });
+
+
+app.get('/allfiles/:userId', async (req, res) => {
+
+  const userId = req.params.userId
+
+  try {
+
+    const allFiles =  await File.find({user: userId}, 
+      // {url: 1, user: 1}
+    )
+
+    res.json({allFiles})
+
+    
+
+    
+
+
+  } catch (err) {
+    console.log(err)
+  }
+})
+
+
+
+
 
 const port = 3603;
 app.listen(port, () => {
