@@ -6,7 +6,7 @@ const { google } = require("googleapis");
 require("dotenv").config();
 const mongoose = require("mongoose");
 const cors = require("cors");
-const authMiddleware = require("./middleware/authMiddleware");
+const cookieMiddleware = require("./middleware/cookieMiddleware");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const cookieParser = require("cookie-parser");
@@ -273,16 +273,22 @@ app.get("/allfiles/:userId", async (req, res) => {
   }
 });
 
-app.get("/files/:fileId", async (req, res) => {
-  if (req.cookies) {
-    // console.log("cookie", req.cookies)
-    // console.log("session", req.cookies.session)
-    req.user = jwt.verify(req.cookies.session, process.env.ACCESS_TOKEN_SECRET);
-    console.log(req.user);
+app.get("/files/:fileId", cookieMiddleware, async (req, res) => {
+  // if (req.cookies) {
+  //   // console.log("cookie", req.cookies)
+  //   // console.log("session", req.cookies.session)
+  //   req.user = jwt.verify(req.cookies.session, process.env.ACCESS_TOKEN_SECRET);
+  //   console.log(req.user);
+  //   let requestingUser = await User.findById(req.user.id);
+  //   console.log(requestingUser);
+  // }
+  // else return
+
+  
     let requestingUser = await User.findById(req.user.id);
     console.log(requestingUser);
-  }
-  // else return
+
+    if (!requestingUser) return res.status(403).json({ message: "Resource forbidden!"} )
 
   const requestedFile = req.params.fileId;
 
@@ -307,3 +313,4 @@ const port = 3603;
 app.listen(port, () => {
   console.log(`Server running on port ${port}`);
 });
+
