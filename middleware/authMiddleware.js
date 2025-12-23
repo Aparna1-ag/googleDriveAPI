@@ -1,22 +1,41 @@
 
-const jwt = require("jsonwebtoken");
+const cookieParser =  require("cookie-parser")
 
-console.log(process.env.ACCESS_TOKEN_SECRET)
+const express = require("express")
+
+const app = express()
+
+app.use(cookieParser())
 
 
 
 
 
-const verifyToken = (req, res, next) => {
-  const token = req.headers["authorization"]?.split(" ")[1];
-  if (!token) return res.status(401).json({ message: "No token provided" });
 
-  try {
-    req.user = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
-    next();
-  } catch (err) {
-    return res.status(401).json({ message: "Invalid token" });
-  }
+const cookieMiddleware = (req, res, next) => {
+  // const sessionId = req.cookie.session
+  console.log(req.cookies)
+
+  
+
+  // if (!sessionId) {
+  //   console.log("User not logged in")
+  //   res.status(401).json({message: "User not logged in"})
+  // }
+
+  // console.log(sessionId)
+
+  // req.user =  getUserFromSession(sessionId)
+
+
+
+  next()
+
+
+
+
+
+
 };
 
-module.exports = verifyToken
+module.exports = cookieMiddleware

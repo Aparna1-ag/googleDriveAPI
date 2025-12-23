@@ -7,13 +7,32 @@ require("dotenv").config()
 const mongoose = require("mongoose");
 const cors = require('cors')
 const authMiddleware =  require('./middleware/authMiddleware')
+const bcrypt = require("bcryptjs");
+const jwt = require("jsonwebtoken");
+const cookieParser =  require("cookie-parser")
+
+
+
 
 
 const app = express();
 
 
 
-app.use(cors())
+app.use(cookieParser())
+
+// console.log(authMiddleware)
+
+
+
+app.use(cors(
+  {
+    origin: "http://localhost:5173",
+    credentials: true,
+
+  }
+
+))
 
 app.use(express.json())
 
@@ -43,12 +62,66 @@ const userSchema = new mongoose.Schema({
   //       enum: ["image", "video", "document"]
   //     },
   //     createdAt: { type: Date, default: Date.now },
-  //     size: Number,
   //     mimeType: String,
 
   //   }
   // ]
 
+});
+
+
+app.post("/api/auth/login", async (req, res) => {
+  const { email, password } = req.body;
+
+  if (!email || !password) {
+    return res.status(400).json({ message: "Email & password required" });
+  }
+
+  const user = await User.findOne({ email });
+
+  // console.log(user)
+
+  if (!user) {
+    return res.status(404).json({ message: "User not found" });
+  }
+
+  const isMatch = await bcrypt.compare(password, user.password);
+
+  if (!isMatch) {
+    return res.status(401).json({ message: "Wrong password" });
+  }
+
+
+
+  const token = jwt.sign(
+    {
+      id: user._id,
+      email: user.email,
+      name: user.name
+    },
+    process.env.ACCESS_TOKEN_SECRET,
+    { expiresIn: "7d" }
+  );
+
+  // user.status = "online";
+  // await user.save();
+
+  res.cookie("session", token, {
+  httpOnly: true,
+  secure: false,        
+  sameSite: "lax",   
+  maxAge: 24 * 60 * 60 * 1000
+  })
+
+ res.json({
+    auth: true,
+    token,
+    user: {
+      _id: user._id,
+      name: user.name,
+      email: user.email
+    }
+  });
 });
 
 
@@ -86,6 +159,11 @@ const auth = new google.auth.GoogleAuth({
   scopes: SCOPES,
 });
 
+const drive = google.drive({
+  version: "v3",
+  auth,
+});
+
 const uploadMiddleWare = upload.fields([{name: "photos", maxCount: 10}, {name: "videos", maxCount: 5}, {name: "documents", maxCount: 10}])
 
 
@@ -99,10 +177,7 @@ app.post("/uploadfile/:userId", uploadMiddleWare, async (req, res) => {
 
   const userId = req.params.userId
 
-  const drive = google.drive({
-    version: "v3",
-    auth,
-  });
+ 
 
 
 
@@ -261,6 +336,56 @@ app.get('/allfiles/:userId', async (req, res) => {
     )
 
     res.json({allFiles})
+
+    
+
+    
+
+
+  } catch (err) {
+    console.log(err)
+  }
+})
+
+
+app.get('/files/:fileId', async (req, res) => {
+
+if (req.cookies)   {
+  // console.log("cookie", req.cookies)
+  // console.log("session", req.cookies.session)
+  req.user = jwt.verify(req.cookies.session, process.env.ACCESS_TOKEN_SECRET)
+  console.log(req.user)
+  let requestingUser = await User.findById(req.user.id)
+  console.log(requestingUser)
+
+} 
+// else return
+
+  
+
+
+
+
+  
+
+
+
+  
+
+  const requestedFile = req.params.fileId
+
+  console.log(requestedFile)
+
+  try {
+
+    const driveStream = await drive.files.get({
+      fileId: requestedFile, alt: 'media'
+    },
+    { responseType: 'stream'}
+  )
+
+  driveStream.data.pipe(res)
+
 
     
 
