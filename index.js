@@ -147,9 +147,6 @@ app.post("/uploadfile/:userId", uploadMiddleWare, async (req, res) => {
       supportsAllDrives: true,
     });
 
-    // const photoIds = []
-    // const videoIds = []
-    // const documentIds = []
 
     const allFiles = [];
 
@@ -237,36 +234,23 @@ app.post("/uploadfile/:userId", uploadMiddleWare, async (req, res) => {
       }
     }
 
-    // console.log(photoIds)
-    // console.log(videoIds)
 
-    // console.log(documentIds)
 
     console.log(allFiles);
 
-    // const allUsers = await User.find()
-    // const currentUser = await User.updateOne({_id: user}, {files: allFiles})
     const insertFiles = await File.insertMany(allFiles);
 
-    // console.log(allUsers)
     console.log(insertFiles);
 
-    // fs.unlinkSync(req.file.path);
 
     return res.status(200).json({
       message: "Upload successful",
-      // photoResponse, videoResponse, documentResponse
-
-      // fileId: response.data.id,
-      // fileName: response.data.name,
+  
     });
   } catch (err) {
     console.log(err);
     console.error("Upload failed:", err.message);
 
-    // if (fs.existsSync(req.file.path)) {
-    //   fs.unlinkSync(req.file.path);
-    // }
 
     return res.status(500).json({
       error: err.message,
