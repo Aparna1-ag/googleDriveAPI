@@ -259,11 +259,11 @@ app.post("/uploadfile/:userId", uploadMiddleWare, async (req, res) => {
 });
 
 app.get("/allfiles/:userId", async (req, res) => {
-  const userId = req.params.userId;
+  // const userId = req.params.userId;
 
   try {
     const allFiles = await File.find(
-      { user: userId }
+      // { user: userId }
       // {url: 1, user: 1}
     );
 
